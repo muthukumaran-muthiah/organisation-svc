@@ -1,0 +1,39 @@
+services:
+  redis:
+    image: redis:7.2-alpine
+    container_name: organization-redis
+    ports:
+      - "${REDIS_EXTERNAL_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+
+  organization-service:
+    build: .
+    container_name: organization-service
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - REDIS_DATABASE=${REDIS_DATABASE:-0}
+      - REDIS_TIMEOUT=${REDIS_TIMEOUT:-2000ms}
+      - REDIS_POOL_MAX_ACTIVE=${REDIS_POOL_MAX_ACTIVE:-8}
+      - REDIS_POOL_MAX_IDLE=${REDIS_POOL_MAX_IDLE:-8}
+      - REDIS_POOL_MIN_IDLE=${REDIS_POOL_MIN_IDLE:-0}
+      - REDIS_POOL_MAX_WAIT=${REDIS_POOL_MAX_WAIT:--1ms}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis-data:
